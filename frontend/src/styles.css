@@ -1,0 +1,300 @@
+import { useEffect, useState } from 'react';
+
+const defaultSettings = {
+  network_name: 'إستراحة - YeTech',
+  primary_color: '#8b5cf6',
+  logo_url: '',
+  banner_url: ''
+};
+
+function App() {
+  const [settings, setSettings] = useState(defaultSettings);
+  const [mediaItems, setMediaItems] = useState([]);
+  const [watchlists, setWatchlists] = useState([]);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [form, setForm] = useState(defaultSettings);
+  const [loading, setLoading] = useState(true);
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [settingsRes, mediaRes, watchlistsRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/media'),
+        fetch('/api/watchlists')
+      ]);
+
+      const settingsData = await settingsRes.json();
+      const mediaData = await mediaRes.json();
+      const watchData = await watchlistsRes.json();
+
+      setSettings(settingsData);
+      setForm(settingsData);
+      setMediaItems(mediaData);
+      setWatchlists(watchData);
+    } catch (error) {
+      console.error('Failed to load app data', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const appStyle = {
+    '--brand-color': settings.primary_color || '#8b5cf6'
+  };
+
+  async function saveSettings(event) {
+    event.preventDefault();
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    });
+
+    const data = await res.json();
+    setSettings(data.settings);
+    setForm(data.settings);
+    setShowAdmin(false);
+  }
+
+  async function handleUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append(event.target.name, file);
+
+    const res = await fetch('/api/admin/branding-upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    setSettings(data.settings);
+    setForm(data.settings);
+  }
+
+  const liveFeed = [
+    { id: 'cam-1', title: 'الكاميرا الرئيسية', url: 'https://example.com/stream/cam1.m3u8' },
+    { id: 'cam-2', title: 'البث المحلي', url: 'rtsp://192.168.1.50:554/stream1' }
+  ];
+
+  const tiles = mediaItems.slice(0, 6);
+
+  return (
+    <div className="app-shell" dir="rtl" style={appStyle}>
+      <header className="topbar">
+        <div className="brand-block">
+          <div className="brand-mark">
+            {settings.logo_url ? (
+              <img src={settings.logo_url} alt="logo" />
+            ) : (
+              'Y'
+            )}
+          </div>
+          <div>
+            <p className="eyebrow">YeTech</p>
+            <h1>{settings.network_name}</h1>
+          </div>
+        </div>
+
+        <nav className="top-links">
+          <a href="#">الرئيسية</a>
+          <a href="#">المكتبة</a>
+          <a href="#">البث المباشر</a>
+          <a href="#">الإعدادات</a>
+        </nav>
+
+        <button className="primary-btn" onClick={() => setShowAdmin(true)}>
+          لوحة الإدارة
+        </button>
+      </header>
+
+      {settings.banner_url ? (
+        <div
+          className="banner"
+          style={{ backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.7)), url(${settings.banner_url})` }}
+        >
+          <div>
+            <span>LAN Network</span>
+            <h2>مرحباً بك في شبكة الاستضافة المحلية</h2>
+          </div>
+        </div>
+      ) : (
+        <div className="banner placeholder-banner">
+          <div>
+            <span>LAN Network</span>
+            <h2>مرحباً بك في شبكة الاستضافة المحلية</h2>
+          </div>
+        </div>
+      )}
+
+      <main className="dashboard">
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow muted">البث المباشر</p>
+            <h3>إدارة وسائطك المحلية بشكل فوري</h3>
+            <p>
+              نظام محلي كامل يعمل عبر الشبكة، يدعم الاستعراض، التشغيل، الإدارة، والتنزيل التلقائي
+              بدون اعتماد على الإنترنت الخارجي.
+            </p>
+            <div className="hero-actions">
+              <button className="primary-btn">تشغيل الآن</button>
+              <button className="ghost-btn">فتح المكتبة</button>
+            </div>
+          </div>
+
+          <div className="live-player">
+            <div className="video-shell">
+              <div className="play-indicator">●</div>
+              <span>Live Stream</span>
+            </div>
+            <div className="live-list">
+              {liveFeed.map((item) => (
+                <div key={item.id} className="stream-row">
+                  <span>{item.title}</span>
+                  <button className="mini-btn">فتح</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="stats-grid">
+          <article className="stat-card">
+            <span>الوسائط</span>
+            <strong>{mediaItems.length || 0}</strong>
+          </article>
+          <article className="stat-card">
+            <span>المتابعات الذكية</span>
+            <strong>{watchlists.length || 0}</strong>
+          </article>
+          <article className="stat-card">
+            <span>الحالة</span>
+            <strong>متصل محلياً</strong>
+          </article>
+          <article className="stat-card">
+            <span>معدل البث</span>
+            <strong>1080p</strong>
+          </article>
+        </section>
+
+        <section className="media-section">
+          <header className="section-head">
+            <h4>المكتبة</h4>
+            <button className="ghost-btn small">عرض الكل</button>
+          </header>
+
+          <div className="media-grid">
+            {loading ? (
+              <p>جارِ التحميل...</p>
+            ) : (
+              tiles.map((media) => (
+                <article key={media.id} className="media-card">
+                  <div className="poster">
+                    {media.type === 'series' ? 'S' : media.type === 'movie' ? 'M' : 'A'}
+                  </div>
+                  <div className="media-info">
+                    <h5>{media.title}</h5>
+                    <p>{media.category || media.type}</p>
+                    <div className="tag-row">
+                      <span>{media.type}</span>
+                      <button>تشغيل</button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="watchlist-panel">
+          <header className="section-head">
+            <h4>قوائم المراقبة الذكية</h4>
+            <button className="primary-btn small">تحديث</button>
+          </header>
+
+          <div className="watchlist-list">
+            {watchlists.map((item) => (
+              <div key={item.id} className="watch-item">
+                <div>
+                  <strong>{item.series_title}</strong>
+                  <p>{item.expected_schedule}</p>
+                </div>
+                <span className="episode-badge">الحلقة {item.latest_downloaded_episode || 0}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {showAdmin && (
+        <div className="modal-backdrop" onClick={() => setShowAdmin(false)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>لوحة الإدارة</h3>
+              <button className="ghost-btn small" onClick={() => setShowAdmin(false)}>إغلاق</button>
+            </div>
+
+            <form onSubmit={saveSettings} className="admin-form">
+              <label>
+                اسم الشبكة
+                <input
+                  value={form.network_name || ''}
+                  onChange={(e) => setForm({ ...form, network_name: e.target.value })}
+                />
+              </label>
+
+              <label>
+                اللون الأساسي
+                <input
+                  type="color"
+                  value={form.primary_color || '#8b5cf6'}
+                  onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+                />
+              </label>
+
+              <label>
+                رابط الشعار
+                <input
+                  value={form.logo_url || ''}
+                  onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                />
+              </label>
+
+              <label>
+                رابط الشعار العلوي
+                <input
+                  value={form.banner_url || ''}
+                  onChange={(e) => setForm({ ...form, banner_url: e.target.value })}
+                />
+              </label>
+
+              <div className="upload-row">
+                <label>
+                  رفع الشعار
+                  <input type="file" name="logo" accept="image/*" onChange={handleUpload} />
+                </label>
+
+                <label>
+                  رفع البنر
+                  <input type="file" name="banner" accept="image/*" onChange={handleUpload} />
+                </label>
+              </div>
+
+              <button type="submit" className="primary-btn">
+                حفظ الإعدادات
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
